@@ -1,0 +1,17 @@
+{
+  "name": "discord-gateway-forwarder",
+  "version": "1.0.0",
+  "description": "Discord Gateway → Cloudflare Worker forwarder",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: discord-gateway-forwarder
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false        # Set manually in Render dashboard
+      - key: WORKER_URL
+        sync: false        # Set manually in Render dashboard
+      - key: WORKER_SECRET
+        sync: false        # Optional secret key
+      - key: NODE_ENV
+        value: production
