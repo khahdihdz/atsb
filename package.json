@@ -1,14 +1,17 @@
 {
-  "name":"atsb-ai-translator",
-  "version":"2.0.0",
-  "private":true,
-  "type":"module",
-  "description":"Privacy-first Discord and Telegram AI translation bot on Cloudflare Workers",
-  "scripts":{
-    "dev":"wrangler dev",
-    "deploy":"wrangler deploy",\n    "register:discord":"node scripts/register-discord.mjs",
-    "check":"node --check worker/index.js && node --check scripts/register-discord.mjs",
-    "test":"node --test"
+  "name": "atsb-ai-translator",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Privacy-first Discord and Telegram AI translation bot on Cloudflare Workers",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "register:discord": "node scripts/register-discord.mjs",
+    "check": "node --check worker/index.js && node --check scripts/register-discord.mjs",
+    "test": "node --test"
   },
-  "devDependencies":{"wrangler":"^4.50.0"}
+  "devDependencies": {
+    "wrangler": "^4.50.0"
+  }
 }
