@@ -6,7 +6,7 @@ Privacy-first AI translation bot for Telegram and Discord, deployed entirely on 
 
 - **Cloudflare Workers + Static Assets:** API routes and landing page.
 - **Telegram:** webhook receives group/private messages and translates automatically.
-- **Discord:** verified Interactions Endpoint with `/translate` slash command and **Translate message** context-menu action.
+- **Discord:** a Cloudflare Durable Object maintains the Gateway WebSocket and translates new messages automatically; verified Interactions Endpoint also provides `/translate` and **Translate message** context-menu actions.
 - **AI:** Gemini API first, Groq fallback.
 - **Privacy:** no D1, KV, R2 or message-history storage. Durable Object is used only to keep the Discord Gateway connection alive; messages and translations are never written to its storage. No message content or AI output in logs.
 
@@ -24,7 +24,7 @@ Privacy-first AI translation bot for Telegram and Discord, deployed entirely on 
 | `GROQ_API_KEY` | Optional | Fallback AI key |
 | `TELEGRAM_BOT_TOKEN` | Telegram | BotFather token |
 | `TELEGRAM_WEBHOOK_SECRET` | Recommended | Random webhook secret |
-| `DISCORD_PUBLIC_KEY` | Discord | Application public key |
+| `DISCORD_PUBLIC_KEY` | Discord interactions | Application public key |\n| `DISCORD_TOKEN` | Discord | Bot token for Gateway and REST |
 
 Set vars (non-secret): `DEFAULT_LANGUAGE=vi`, `GEMINI_MODEL=gemini-2.5-flash`, `GROQ_MODEL=openai/gpt-oss-20b`.
 
