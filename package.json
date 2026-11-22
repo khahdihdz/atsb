@@ -1,7 +1,14 @@
 {
-  "name":"atsb-ai-translator","version":"1.0.0","private":true,"type":"module",
-  "description":"Privacy-first AI translation bots for Discord and Telegram",
-  "scripts":{"start":"node index.js","dev":"node --watch index.js","test":"node --test","check":"node --check index.js && node --check src/config.js && node --check src/providers.js && node --check src/translator.js && node --check src/discord.js && node --check src/telegram.js"},
-  "engines":{"node":">=22.0.0"},
-  "dependencies":{"discord.js":"^14.19.3","telegraf":"^4.16.3"}
+  "name":"atsb-ai-translator",
+  "version":"2.0.0",
+  "private":true,
+  "type":"module",
+  "description":"Privacy-first Discord and Telegram AI translation bot on Cloudflare Workers",
+  "scripts":{
+    "dev":"wrangler dev",
+    "deploy":"wrangler deploy",\n    "register:discord":"node scripts/register-discord.mjs",
+    "check":"node --check worker/index.js && node --check scripts/register-discord.mjs",
+    "test":"node --test"
+  },
+  "devDependencies":{"wrangler":"^4.50.0"}
 }
