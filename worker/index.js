@@ -5,6 +5,7 @@ const encoder = new TextEncoder();
 const decodeHex = (value) => Uint8Array.from((value.match(/.{2}/g) || []).map((x) => parseInt(x, 16)));
 const bytesToHex = (value) => [...new Uint8Array(value)].map((x) => x.toString(16).padStart(2, "0")).join("");
 import { languageCode, splitText } from "./utils.js";
+import { DurableObject } from "cloudflare:workers";
 
 async function translate(text, target, env) {
   const input = String(text || "").trim();
@@ -172,6 +173,134 @@ async function handleTelegram(request, env, ctx) {
   return json({ ok: true });
 }
 
+
+export class DiscordGateway extends DurableObject {
+  constructor(ctx, env) {
+    super(ctx, env);
+    this.socket = null;
+    this.heartbeatTimer = null;
+    this.reconnectTimer = null;
+    this.sequence = null;
+    this.heartbeatAcknowledged = true;
+    this.status = "stopped";
+    this.cooldowns = new Map();
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    if (url.pathname === "/status") return json({ status: this.status });
+    if (!this.env.DISCORD_TOKEN) return json({ status: "not_configured" }, 503);
+    this.connect().catch(() => this.scheduleReconnect());
+    return json({ status: this.status });
+  }
+
+  async connect() {
+    if (this.socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(this.socket.readyState)) return;
+    this.status = "connecting";
+    const response = await fetch("https://gateway.discord.gg/?v=10&encoding=json", {
+      headers: { Upgrade: "websocket" }
+    });
+    const socket = response.webSocket;
+    if (!socket) throw new Error("discord_gateway_upgrade_failed");
+    socket.accept();
+    this.socket = socket;
+    socket.addEventListener("message", (event) => {
+      this.handleGatewayPayload(event.data).catch(() => this.scheduleReconnect());
+    });
+    socket.addEventListener("close", () => this.scheduleReconnect());
+    socket.addEventListener("error", () => this.scheduleReconnect());
+  }
+
+  sendGateway(payload) {
+    if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify(payload));
+  }
+
+  async handleGatewayPayload(raw) {
+    const packet = JSON.parse(typeof raw === "string" ? raw : new TextDecoder().decode(raw));
+    if (packet.s !== null && packet.s !== undefined) this.sequence = packet.s;
+    if (packet.op === 10) {
+      const interval = packet.d.heartbeat_interval;
+      if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+      this.heartbeatAcknowledged = true;
+      this.sendGateway({
+        op: 2,
+        d: {
+          token: this.env.DISCORD_TOKEN,
+          intents: 1 | 512 | 4096 | 32768,
+          properties: { os: "cloudflare-workers", browser: "atsb", device: "atsb" }
+        }
+      });
+      this.heartbeatTimer = setInterval(() => {
+        if (!this.heartbeatAcknowledged) {
+          this.socket?.close(4000, "Heartbeat timeout");
+          this.scheduleReconnect();
+          return;
+        }
+        this.heartbeatAcknowledged = false;
+        this.sendGateway({ op: 1, d: this.sequence });
+      }, interval);
+      this.sendGateway({ op: 1, d: this.sequence });
+      this.heartbeatAcknowledged = false;
+      return;
+    }
+    if (packet.op === 11) { this.heartbeatAcknowledged = true; return; }
+    if (packet.op === 1) { this.sendGateway({ op: 1, d: this.sequence }); return; }
+    if (packet.op === 7 || packet.op === 9) {
+      this.socket?.close(4001, "Discord requested reconnect");
+      this.scheduleReconnect(packet.op === 9 ? 2500 : 1000);
+      return;
+    }
+    if (packet.op !== 0) return;
+    if (packet.t === "READY" || packet.t === "RESUMED") {
+      this.status = "online";
+      return;
+    }
+    if (packet.t === "MESSAGE_CREATE") this.handleMessage(packet.d).catch(() => {});
+  }
+
+  async handleMessage(message) {
+    if (!message || message.author?.bot || !message.content?.trim()) return;
+    if (!this.env.GEMINI_API_KEY && !this.env.GROQ_API_KEY) return;
+    if (message.content.length > 4000) return;
+    const authorId = String(message.author.id);
+    const now = Date.now();
+    if (now - (this.cooldowns.get(authorId) || 0) < 2500) return;
+    this.cooldowns.set(authorId, now);
+    if (this.cooldowns.size > 4000) {
+      for (const [id, time] of this.cooldowns) if (now - time > 15000) this.cooldowns.delete(id);
+    }
+    try {
+      const output = await translate(message.content, languageCode(this.env.DEFAULT_LANGUAGE, "vi"), this.env);
+      if (output === "__SAME_LANGUAGE__") return;
+      for (const [index, chunk] of splitText("🌐 " + output, 1900).entries()) {
+        await fetch("https://discord.com/api/v10/channels/" + message.channel_id + "/messages", {
+          method: "POST",
+          headers: { authorization: "Bot " + this.env.DISCORD_TOKEN, "content-type": "application/json" },
+          body: JSON.stringify({
+            content: chunk,
+            ...(index === 0 ? { message_reference: { message_id: message.id, channel_id: message.channel_id, guild_id: message.guild_id } } : {}),
+            allowed_mentions: { parse: [] }
+          })
+        });
+      }
+    } catch {
+      // Deliberately do not log message content, prompts, or provider responses.
+    }
+  }
+
+  scheduleReconnect(delay = 3000) {
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = null;
+    if (this.reconnectTimer) return;
+    this.status = "reconnecting";
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.socket = null;
+      this.connect().catch(() => this.scheduleReconnect(10000));
+    }, delay);
+  }
+}
+
 async function handleRequest(request, env, ctx) {
   const url = new URL(request.url);
   if (request.method === "GET" && ["/health", "/api/status"].includes(url.pathname)) {
@@ -181,6 +310,10 @@ async function handleRequest(request, env, ctx) {
       providers: { gemini: Boolean(env.GEMINI_API_KEY), groq: Boolean(env.GROQ_API_KEY) },
       privacy: "message-content-not-persisted"
     });
+  }
+  if (request.method === "GET" && url.pathname === "/discord/gateway/status" && env.DISCORD_GATEWAY) {
+    const id = env.DISCORD_GATEWAY.idFromName("global-discord-gateway");
+    return env.DISCORD_GATEWAY.get(id).fetch("https://discord-gateway.internal/status");
   }
   if (request.method === "POST" && url.pathname === "/discord") {
     const result = await handleDiscord(request, env);
