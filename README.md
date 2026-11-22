@@ -8,9 +8,9 @@ Privacy-first AI translation bot for Telegram and Discord, deployed entirely on 
 - **Telegram:** webhook receives group/private messages and translates automatically.
 - **Discord:** verified Interactions Endpoint with `/translate` slash command and **Translate message** context-menu action.
 - **AI:** Gemini API first, Groq fallback.
-- **Privacy:** no D1, KV, R2, Durable Objects or message-history storage. No message content or AI output in logs. Only transient request memory.
+- **Privacy:** no D1, KV, R2 or message-history storage. Durable Object is used only to keep the Discord Gateway connection alive; messages and translations are never written to its storage. No message content or AI output in logs.
 
-> Discord limitation: a Worker-only deployment cannot maintain a normal outbound Discord Gateway WebSocket connection. Therefore this deployment uses Discord slash/context-menu interactions; it does not passively read every Discord channel message. Telegram supports automatic translation via webhook. To automatically translate every Discord message, an always-on Gateway process outside Workers would be required.
+> Discord Gateway runs as an outbound WebSocket client inside a Durable Object. It stays active while connected and may incur Durable Object duration usage. A scheduled trigger checks/restarts the connection every minute. Enable the privileged Message Content Intent in the Discord Developer Portal. Telegram automatic translation runs through webhooks.
 
 ## 1. Cloudflare deployment
 
@@ -87,7 +87,7 @@ Discord verifies Ed25519 signatures and rejects stale timestamps. The Worker ack
 
 ## 5. Free AI and limits
 
-Gemini and Groq may offer free quotas, but model availability, rate limits, and free-tier terms can change. This project uses Gemini first and Groq as fallback. Create keys from Google AI Studio and Groq Console. Cloudflare Workers Free has its own request/CPU quotas. No service is guaranteed unlimited or 24/7 beyond provider plans.
+Gemini and Groq may offer free quotas, but model availability, rate limits, and free-tier terms can change. This project uses Gemini first and Groq as fallback. Create keys from Google AI Studio and Groq Console. Cloudflare Workers and Durable Objects have request/CPU/duration quotas. An active Discord Gateway outbound WebSocket pins its Durable Object in memory and incurs duration usage while connected; review current Cloudflare plan limits. No service is guaranteed unlimited or 24/7 beyond provider plans.
 
 ## 6. Privacy
 
