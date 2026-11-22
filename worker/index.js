@@ -139,7 +139,7 @@ async function handleTelegram(request, env, ctx) {
     });
   };
   if (text.startsWith("/start") || text.startsWith("/help")) {
-    ctx.waitUntil(reply("ATSB AI Translator\n/setlang vi — chọn ngôn ngữ đích\n/translate <nội dung> [mã] — dịch thủ công\n/privacy — thông tin quyền riêng tư\nBot tự dịch tin nhắn văn bản trong nhóm khi Privacy Mode đã tắt."));
+    ctx.waitUntil(reply("ATSB AI Translator\n/translate <nội dung> [mã] — dịch thủ công\n/privacy — thông tin quyền riêng tư\nBot tự dịch tin nhắn văn bản trong nhóm khi Privacy Mode đã tắt."));
     return json({ ok: true });
   }
   if (text.startsWith("/privacy")) {
