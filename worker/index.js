@@ -190,7 +190,7 @@ export class DiscordGateway extends DurableObject {
     const url = new URL(request.url);
     if (url.pathname === "/status") return json({ status: this.status });
     if (!this.env.DISCORD_TOKEN) return json({ status: "not_configured" }, 503);
-    this.connect().catch(() => this.scheduleReconnect());
+    try { await this.connect(); } catch { this.scheduleReconnect(); }
     return json({ status: this.status });
   }
 
@@ -244,7 +244,7 @@ export class DiscordGateway extends DurableObject {
       return;
     }
     if (packet.op === 11) { this.heartbeatAcknowledged = true; return; }
-    if (packet.op === 1) { this.sendGateway({ op: 1, d: this.sequence }); return; }
+    if (packet.op === 1) { this.heartbeatAcknowledged = false; this.sendGateway({ op: 1, d: this.sequence }); return; }
     if (packet.op === 7 || packet.op === 9) {
       this.socket?.close(4001, "Discord requested reconnect");
       this.scheduleReconnect(packet.op === 9 ? 2500 : 1000);
@@ -293,6 +293,9 @@ export class DiscordGateway extends DurableObject {
     this.heartbeatTimer = null;
     if (this.reconnectTimer) return;
     this.status = "reconnecting";
+    if (this.socket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(this.socket.readyState)) {
+      try { this.socket.close(4000, "Reconnecting"); } catch {}
+    }
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.socket = null;
