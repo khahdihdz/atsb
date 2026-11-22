@@ -333,5 +333,10 @@ export default {
   async fetch(request, env, ctx) {
     try { return await handleRequest(request, env, ctx); }
     catch { return json({ error: "internal_error" }, 500); }
+  },
+  async scheduled(controller, env, ctx) {
+    if (!env.DISCORD_TOKEN || !env.DISCORD_GATEWAY) return;
+    const id = env.DISCORD_GATEWAY.idFromName("global-discord-gateway");
+    ctx.waitUntil(env.DISCORD_GATEWAY.get(id).fetch("https://discord-gateway.internal/start", { method: "POST" }));
   }
 };
