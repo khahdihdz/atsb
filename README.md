@@ -58,7 +58,7 @@ curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo"
 
 For group-wide automatic translation, use BotFather `/setprivacy` → select bot → Disable, then remove/re-add bot to the group if Telegram requires it. Ensure the bot can read messages and send replies. Privacy Mode disabled means Telegram sends group messages to the bot; review the privacy policy and inform group members.
 
-Commands: `/setlang` (default is `vi`), `/translate hello en`, `/privacy`, `/help`. The Worker currently uses DEFAULT_LANGUAGE globally; no per-chat settings are persisted.
+Commands: `/translate hello en`, `/privacy`, `/help`. The default target language is `DEFAULT_LANGUAGE=vi` globally; no per-chat settings are persisted.
 
 ## 3. Discord Interactions
 
