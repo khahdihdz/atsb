@@ -306,7 +306,7 @@ async function handleRequest(request, env, ctx) {
   if (request.method === "GET" && ["/health", "/api/status"].includes(url.pathname)) {
     return json({
       status: "online", service: "ATSB AI Translator",
-      platforms: { discord: env.DISCORD_PUBLIC_KEY ? "interactions" : "not_configured", telegram: env.TELEGRAM_BOT_TOKEN ? "webhook" : "not_configured" },
+      platforms: { discord: env.DISCORD_TOKEN ? "gateway" : "not_configured", discordInteractions: env.DISCORD_PUBLIC_KEY ? "enabled" : "not_configured", telegram: env.TELEGRAM_BOT_TOKEN ? "webhook" : "not_configured" },
       providers: { gemini: Boolean(env.GEMINI_API_KEY), groq: Boolean(env.GROQ_API_KEY) },
       privacy: "message-content-not-persisted"
     });
